@@ -1,9 +1,10 @@
 ### What is this project?
-**snap** is a project to make a small wifi enabled camera using various hardware pieces.
+**snap** is a project to make a small small small camera
 
 ### Roadmap:
-- [ ] &nbsp; ArduCAM, Arduino, and OV2640 serial image to computer
 - [ ] &nbsp; OpenLog write data to it
-- [ ] &nbsp; Flash Atmega to traffic data to OpenLog
-- [ ] &nbsp; Bring up board 1
-- [ ] &nbsp; Bring up board 2
+
+### Notes
+
+- Switched to Teensy 3.2 for faster onboard processor 75 MHz, 32-bit
+- Teensy comes with 2 programs: HalfKay which switches the LED lights, and  whatever program you load through HalfKay bootloader
