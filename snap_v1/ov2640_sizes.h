@@ -1,6 +1,7 @@
 #ifndef OV2640_SIZES_H
 #define OV2640_SIZES_H
 
+#include "Sccb.h"
 #include "ov2640_regs.h"
 
 /* Supported resolutions */

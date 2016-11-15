@@ -268,9 +268,4 @@
 #define HISTO_LOW               0x61 /* Histo Algorithm Low Level */  
 #define HISTO_HIGH              0x62 /* Histo Algorithm High Level */
 
-struct regval_list {
-  byte reg;
-  byte val;
-};
-
 #endif

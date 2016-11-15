@@ -1,0 +1,81 @@
+there are only a couple of good colors
+but every has a different opinion, a different color on the infinite spectrum
+
+0001 => r0x02
+0002 => r0x04
+0004 => r0x08
+0005 => r0x0F
+0006 => r0xFF
+
+0007 => no read after two writes, 0x0F
+
+if we compare the 
+
+9 pulses between the start and end sequences:
+start: sda down, then sclk down
+stop: sclk up, sda up
+
+9 on rises: 8 bits MSB first, ack bit
+011 000 000
+
+no acknowledge bit?
+
+beginTransmission to 0x50, endTransmission to 0x50
+1010 0000 1 LOOK THERE IS AN ACK BIT!
+
+/// UNO
+communicating with a snap_test_uno that is writing back 0x0C (12)
+r0x00 => 0006
+r0x04 => 0007
+r0xFF => 0008
+r0x0F => 0009
+
+
+for the r0x0f example, 3 frames, two on each end identical?
+
+device is 7 bits:
+
+frame 1 (beginTransmission to 0x8, the write(0x0F))
+0001000 0              0     00001111        0
+device  master writes  ack   0x0F            ack
+
+frame 2 (slave responds)
+0001000 1              0     00001100        1
+device  master reads   ack   address (data)  ack
+18 bits sent over        * this means slave responded 
+
+frame 3 (endTransmission to 0x8, the write(0x0F))
+0001000 0              0     00001111        0
+device  master writes  ack   0x0F            ack
+/// UNO
+
+/// after bit-banging and learning sccb, hack i2c to fake it?
+r0x04, on 0x30
+
+phase 1: id
+011 0000 0 0 0000 0100 0
+  3    0 r a    0    4 a
+
+phase 2:
+011 0000 1 0 0010 0011 1 0
+3      0 w a    2    3 w a
+
+so this is 0x23 => 35
+
+in sccb world what do these mean?
+
+0110 0000 0 0000 0100 0
+   6    0 x    0    4 x
+
+so it just happens that i2c works with sccb
+
+
+one thing we see is that between phases you can stop and restart transmission
+
+YAY WE CAN WRITE AND READ FROM REGISTERS!!!
+
+r0xFF
+w0xFF,0x00
+r0xFF
+
+todo: should learn how to run i2c on 2 GPIO pins, and learn to big-bang it
