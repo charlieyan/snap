@@ -2,12 +2,8 @@
 #include <Arduino.h>
 #include "Sccb.h"
 
-Sccb::Sccb(int sccb_sioc_pin, int sccb_siod_pin, int device_id) {
-  Wire.begin();
-  int found_device = scanForDevices();
-  if (found_device == device_id) {
-    _device_id = device_id;
-  }
+Sccb::Sccb() {
+  _device_id = -1;
 }
 
 // This function will scan the i2c bus for a valid device
@@ -21,8 +17,10 @@ int Sccb::scanForDevices(void) {
     Wire.beginTransmission(address);
     int error = Wire.endTransmission();
     if (error == 0) {
+      /*
       Serial.print("i2C device found at: 0x");
       Serial.println(address, HEX);
+      */
       return address;
     }
   }

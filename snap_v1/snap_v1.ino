@@ -3,46 +3,100 @@
 #include <stdlib.h>     /* strtol */
 #include "Sccb.h"
 
-#define SIOC_PIN 19
-#define SIOD_PIN 18
-
-#define XCLK  3 // 8 MHz output
-#define VSYNC 4
-#define HREF  5
-#define PCLK  6
-
-#define D6    7
-#define D7    8
-#define D4    9
-#define D5    10
-#define D2    11
-#define D3    12
-#define D0    13
-#define D1    14
-#define Y0    15
-#define Y1    16  
-#define PWDN  17
-#define RST   20
-
-#define LED   21
-#define SWI   22
-
 #define OV2640_SCCB_ADDRESS 0x30 /* 0011 110 0 = 60, but Wire takes care of last bit so 30 */
 
-String readString;
+#define SCL_PIN 18
+#define SDA_PIN 19
 
-Sccb* sccb_ptr;
+#define VSYNC 20
+#define HREF  21
+#define PCLK  17
+
+#define D7    16
+#define D6    23
+#define D5    15
+#define D4    4
+#define D3    14
+#define D2    5
+#define D1    13
+#define D0    6
+
+#define Y1    12
+#define Y0    7
+
+#define PWDN  -1 // not connected
+#define RST   11
+#define XCLK  22 // 8 MHz output
+
+#define TX    1 // RX1 on openlog 
+#define RX    0 // TX0 on openlog
+
+#define SWI   2
+#define LED   3
+
+String readString;
+Sccb sccb = Sccb();
 
 void setup() {
-  Serial.begin(115200);  // start serial for output
-  sccb_ptr = new Sccb(SIOC_PIN, SIOD_PIN, OV2640_SCCB_ADDRESS);
-  delay(1000);
+  Wire.begin();
+  delay(100);
   analogWriteFrequency(XCLK, 8000000); // Create 8 MHz clock output for XCLK, which drives the PLL that goes downstreams to timing etc.
   analogWrite(XCLK, 127);; // 50% duty cycle
   delay(100);
+
+  int found_address = sccb.scanForDevices();
+  if (found_address == OV2640_SCCB_ADDRESS) {
+    sccb._device_id = found_address;
+  }
+
+  Serial.begin(115200);  // start serial for debug output
+  delay(1000);
 }
 void loop() {
+  while (Serial.available()) {
+    char c = Serial.read(); // gets one byte from serial buffer
+    readString += c; //makes the string readString
+    delay(2); //slow looping to allow buffer to fill with next character
+  }
+  if (readString.length() > 0) {
+    Serial.println(readString);
+  }
 
+  if (readString == "status") {
+    Serial.println(sccb._device_id);
+  }
+  else if (readString[0] == 'r') {
+    String rest = readString.substring(1);
+
+    long int x;
+    char* pEnd;
+    x = strtol(rest.c_str(),&pEnd,16);
+    Serial.println(x);
+
+    byte bank_select = sccb.readRegister(OV2640_SCCB_ADDRESS, x);
+    Serial.println(bank_select);
+  }
+  else if (readString[0] == 'w') {
+    if (readString.length() == 10) {
+      String sub_address = readString.substring(1, 5);
+      long int sub_address_int;
+      char* sub_address_c;
+      sub_address_int = strtol(sub_address.c_str(),&sub_address_c,16);
+
+      String data = readString.substring(6, 10);
+      long int data_int;
+      char* data_c;
+      data_int = strtol(data.c_str(),&data_c,16);
+
+      int result = sccb.writeRegister(OV2640_SCCB_ADDRESS, (byte)sub_address_int, (byte)data_int);
+      Serial.print("writing to ");
+      Serial.print(sub_address_int);
+      Serial.print(" finished with ");
+      Serial.println(result);
+    }
+  }
+
+  readString = "";
 }
 
 
