@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>     /* strtol */
 #include "Sccb.h"
+#include "ov2640_regs.h"
 
 #define OV2640_SCCB_ADDRESS 0x30 /* 0011 110 0 = 60, but Wire takes care of last bit so 30 */
 
@@ -36,9 +37,49 @@
 
 String readString;
 Sccb sccb = Sccb();
+bool pulseLED = false;
+bool ledOn = false;
+
+// OV7670 register values
+const struct regval_list ov2640_regs[] = {
+  {BANK_SEL,    BANK_SEL_SENS},
+  {COM7,        COM7_SRST}, // system reset
+  {0xFF, 0xFF}  // End marker
+};
+
+void setup_pins() {
+  pinMode(VSYNC,  INPUT);
+  attachInterrupt(digitalPinToInterrupt(VSYNC), vsync_rising_cb, RISING);
+  attachInterrupt(digitalPinToInterrupt(VSYNC), vsync_falling_cb, FALLING);
+  pinMode(HREF,   INPUT);
+  pinMode(PCLK,   INPUT);
+  pinMode(D7,     INPUT);
+  pinMode(D6,     INPUT);
+  pinMode(D5,     INPUT);
+  pinMode(D4,     INPUT);
+  pinMode(D3,     INPUT);
+  pinMode(D2,     INPUT);
+  pinMode(D1,     INPUT);
+  pinMode(D0,     INPUT);
+  pinMode(Y1,     INPUT);
+  pinMode(Y0,     INPUT);
+
+  pinMode(LED,    OUTPUT);
+}
+
+void vsync_rising_cb() {
+  Serial.println("vsync rising");
+}
+
+void vsync_falling_cb() {
+  Serial.println("vsync falling");
+}
 
 void setup() {
   Wire.begin();
+
+  setup_pins();
+  
   delay(100);
   analogWriteFrequency(XCLK, 8000000); // Create 8 MHz clock output for XCLK, which drives the PLL that goes downstreams to timing etc.
   analogWrite(XCLK, 127);; // 50% duty cycle
@@ -64,6 +105,9 @@ void loop() {
 
   if (readString == "status") {
     Serial.println(sccb._device_id);
+  }
+  else if (readString == "led") {
+    pulseLED = !pulseLED;
   }
   else if (readString[0] == 'r') {
     String rest = readString.substring(1);
@@ -97,6 +141,16 @@ void loop() {
   }
 
   readString = "";
+
+  if (pulseLED) {
+    if (!ledOn) {
+      digitalWrite(LED, HIGH);
+    }
+    else {
+      digitalWrite(LED, LOW); 
+    }
+    ledOn = !ledOn;
+  }
 }
 
 
