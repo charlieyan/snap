@@ -64,7 +64,14 @@ void setup_pins() {
   pinMode(Y1,     INPUT);
   pinMode(Y0,     INPUT);
 
+  pinMode(RST,    OUTPUT);
+  pinMode(XCLK,   OUTPUT);
+
   pinMode(LED,    OUTPUT);
+  pinMode(SWI,    INPUT);
+
+  pinMode(TX,     OUTPUT);
+  pinMode(RX,     INPUT);  
 }
 
 void vsync_rising_cb() {
@@ -77,7 +84,6 @@ void vsync_falling_cb() {
 
 void setup() {
   Wire.begin();
-
   setup_pins();
   
   delay(100);
