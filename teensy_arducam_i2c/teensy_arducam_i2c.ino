@@ -44,14 +44,14 @@ int scanForDevices(void) {
 }
 
 // Read a single byte from address and return it as a byte
-byte readRegister(int device_id, byte address) {
+byte readRegister(byte device_id, byte address) {
   byte data;
   Serial.print("reading from ");
   Serial.println(address);
   Wire.beginTransmission(device_id);
   Wire.write(address);
-  Wire.endTransmission();
-  Wire.requestFrom(device_id, 1);
+//  Wire.endTransmission();
+  Wire.requestFrom(device_id, (byte)1);
   data = Wire.read();
   int result = Wire.endTransmission();
   Serial.print("endTransmission ends with ");
@@ -90,13 +90,16 @@ void loop()
   if (readString == "status") {
     Serial.println(found_address);
   }
+  else if (readString[readString.length()-1] == 'c') {
+    readString = "";
+  }
   else if (readString[0] == 'r') {
     String rest = readString.substring(1);
     long int x;
     char* pEnd;
     x = strtol(rest.c_str(),&pEnd,16);
     Serial.println(x);
-    byte bank_select = readRegister(found_address, x);
+    byte bank_select = readRegister((byte)found_address, x);
     Serial.println(bank_select);
   }
   else if (readString[0] == 'w') {
@@ -111,14 +114,15 @@ void loop()
       char* data_c;
       data_int = strtol(data.c_str(),&data_c,16);
 
-      int result = writeRegister(found_address, (byte)sub_address_int, (byte)data_int);
-      Serial.print("writing to ");
+      int result = writeRegister((byte)found_address, (byte)sub_address_int, (byte)data_int);
+      Serial.print("writing ");
+      Serial.print(data_int);
+      Serial.print(" to ");
       Serial.print(sub_address_int);
       Serial.print(" finished with ");
       Serial.println(result);
     }
   }
-  readString = "";
 }
 
 
