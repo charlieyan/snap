@@ -1,27 +1,25 @@
-// ArduCAM demo (C)2014 Lee
-// web: http://www.ArduCAM.com
-// This program is a demo of how to use most of the functions
-// of the library with a supported camera modules, and can run on any Arduino platform.
+// -------------------------------------------------------------------------------------------
+// Basic Master
+// -------------------------------------------------------------------------------------------
 //
-// This demo was made for Omnivision OV2640 2MP sensor.
-// It will run the ArduCAM as a real 2MP digital camera, provide both preview and JPEG capture.
-// The demo sketch will do the following tasks:
-// 1. Set the sensor to BMP preview output mode.
-// 2. Switch to JPEG mode when shutter buttom pressed.
-// 3. Capture and buffer the image to FIFO.
-// 4. Store the image to Micro SD/TF card with JPEG format.
-// 5. Resolution can be changed by myCAM.set_JPEG_size() function.
-// This program requires the ArduCAM V3.1.0 (or later) library and Rev.C ArduCAM shield
-// and use Arduino IDE 1.5.2 compiler or above
+// This creates a simple I2C Master device which when triggered will send/receive a text 
+// string to/from a Slave device.  It is intended to pair with a Slave device running the 
+// basic_slave sketch.
+//
+// Pull pin12 input low to send.
+// Pull pin11 input low to receive.
+//
+// This example code is in the public domain.
+//
+// -------------------------------------------------------------------------------------------
 
-#include <Wire.h>
-#include <SPI.h>
-#define OV2640_SCCB_ADDRESS 0x3C /* 0011 110 0 = 60, but Wire takes care of last bit so 30 */
+#include <i2c_t3.h>
 
-const int SPI_CS = 10;
-int found_address;
+// Memory
+#define MEM_LEN 1
+char databuf[MEM_LEN];
 String readString;
-byte regDat;
+int found_address;
 
 // This function will scan the i2c bus for a valid device
 // only expecting to find one in this application and that
@@ -34,7 +32,7 @@ int scanForDevices(void) {
     Wire.beginTransmission(address);
     int error = Wire.endTransmission();
     if (error == 0) {
-      Serial.print("i2C device found at: 0x");
+      Serial.print("new i2C device found at: 0x");
       Serial.println(address, HEX);
       return address;
     }
@@ -43,21 +41,17 @@ int scanForDevices(void) {
   return 0;
 }
 
-// Read a single byte from address and return it as a byte
 byte readRegister(byte device_id, byte address) {
   byte data;
   Serial.print("reading from ");
   Serial.println(address);
 
-  Wire.beginTransmission(device_id);
+  Wire.beginTransmission(found_address);
   Wire.write(address);
-  Wire.endTransmission(false); // these 3 lines generate: h3C WR, hFF
+  Wire.sendTransmission(I2C_NOSTOP);
 
-  Wire.requestFrom(device_id, (byte)1);
+  Wire.requestFrom(device_id, (size_t)1);
   data = Wire.read();
-
-//  Serial.print("endTransmission ends with ");
-//  Serial.println(result);
   return data;
 }
 
@@ -68,11 +62,26 @@ int writeRegister(int device_id, byte address, byte data) {
   return Wire.endTransmission();
 }
 
+void print_i2c_status(void)
+{
+    switch(Wire.status())
+    {
+    case I2C_WAITING:  Serial.print("I2C waiting, no errors\n"); break;
+    case I2C_ADDR_NAK: Serial.print("Slave addr not acknowledged\n"); break;
+    case I2C_DATA_NAK: Serial.print("Slave data not acknowledged\n"); break;
+    case I2C_ARB_LOST: Serial.print("Bus Error: Arbitration Lost\n"); break;
+    case I2C_TIMEOUT:  Serial.print("I2C timeout\n"); break;
+    case I2C_BUF_OVF:  Serial.print("I2C buffer overflow\n"); break;
+    default:           Serial.print("I2C busy\n"); break;
+    }
+}
+
 void setup()
 {
+  Serial.println("starting");
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 100000);
+  memset(databuf, 0, sizeof(databuf));
   Serial.begin(115200);
-  Serial.println("starting ArduCAM");
-  Wire.begin();
 
   found_address = scanForDevices();
   Serial.println(found_address);
@@ -90,6 +99,7 @@ void loop()
   }
 
   if (readString == "status") {
+    found_address = scanForDevices();
     Serial.println(found_address);
   }
   else if (readString[readString.length()-1] == 'c') {
@@ -103,6 +113,7 @@ void loop()
     Serial.println(x);
     byte bank_select = readRegister((byte)found_address, x);
     Serial.println(bank_select);
+    print_i2c_status();
   }
   else if (readString[0] == 'w') {
     if (readString.length() == 10) {
@@ -123,11 +134,9 @@ void loop()
       Serial.print(sub_address_int);
       Serial.print(" finished with ");
       Serial.println(result);
+      print_i2c_status();
     }
   }
   readString = "";
 }
-
-
-
 
