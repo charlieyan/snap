@@ -1,0 +1,14 @@
+// value: value sample
+// flag: flag sample
+
+function Value2Text(flag, value){
+  switch(flag){
+    case 2:
+        return "Start";
+    case 3:
+        return "Stop";
+    case 4:
+        return value;
+    default: return value;
+  }
+}

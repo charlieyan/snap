@@ -1,0 +1,58 @@
+// rgData: input, raw digital sample array
+// rgValue: output, decoded data array
+// rgFlag: output, decoded flag array
+
+var c = rgData.length // c = number of raw samples
+
+// we are 2-wire, tri-state not supported
+var last_clok = 1; // previous cock signal level, assume pulled up in wireup
+var last_data = 1; // previous data signal level, assumed pulled up in wireup
+var last_state = 1; // 1 is off, 2 is started, 3 stopped, 4 is data
+var last_value = 0; // only used if last_state == 4
+
+for(var i = 0; i < c; i++){ // for each sample
+    var s = rgData[i]; // current sample, 0-15 for the digital pins
+
+    var data = 1 & (s >> 15); // pin15 is the data signal
+    var clok = 1 & (s >> 7); // pin7 is the clock signal
+
+    // 2-wire, not-tri, start
+    if (last_data != 0 && data == 0){
+        if (clok == 1) {
+            last_state = 2;
+        }
+    }
+
+    if (last_state == 2 || last_state == 4) {
+        // started
+        if (last_clok == 0 && clok == 1) {
+            // rising edge of clk
+            last_state = 4;
+            last_value = data;
+        }
+    }
+
+    // 2-wire, not-tri, stop
+    if (last_data == 0 && data == 1) {
+        if (clok == 1) {
+            last_state = 3;
+        }
+    }
+
+    // reset back
+    if (last_state == 3) {
+        if (data == 1 && clok == 1) {
+            last_state == 1;
+        }
+    }
+
+    // assign the rgFlag, rgValue by last_state
+    if (last_state > 1) {
+        rgFlag[i] = last_state;
+        rgValue[i] = last_value;
+    }
+
+    // update
+    last_clok = clok;
+    last_data = data;
+}
