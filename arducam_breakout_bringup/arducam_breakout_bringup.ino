@@ -1,53 +1,60 @@
-#include <i2c_t3.h>
 #include <SPI.h>
 #include <ArduCAM.h>
-#include "memorysaver.h"
 
-#define I2C_ADDR 0x30
+#define SIO_C 23
+#define SIO_D 22
+
 #define SPI_CS 10 // slave select for SPI
 
-ArduCAM myCAM(OV2640, SPI_CS);
+#define FIFO_SIZE 0x07FFFFF
+#define FRAMES_NUM 0x06
+
+ArduCAM myCAM(SIO_C, SIO_D, SPI_CS);
 
 String readString;
+int start_capture = 0;
+uint8_t temp;
 
 void setup()
 {
   Serial.begin(115200);
   Serial.println("starting");
 
-  Wire.begin();
-//
-//  delay(1000);
-//  pinMode(SPI_CS, OUTPUT);
-//  SPI.begin();
-//  myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
-//  uint8_t temp = myCAM.read_reg(ARDUCHIP_TEST1);
-//  if (temp != 0x55) {
-//    Serial.println("SPI interface Error!");
-//    while (1);
-//  } else {
-//    Serial.println("myCam SPI ready");
-//  }
-}
-
-// This function will scan the i2c bus for a valid device
-// only expecting to find one in this application and that
-// is the Camera's SCCB interface
-int scanForDevices(void) {
-  for (int address = 1; address <= 256; address++) {
-    // This scanner uses the return value of
-    // the Wire.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    int error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.print("i2C device found at: 0x");
-      Serial.println(address, HEX);
-      return address;
-    }
+  myCAM.InitSCCB();
+  int sensor_address = myCAM.ScanSCCB();
+  if (sensor_address > -1) {
+    Serial.print("assigned sensor_addr_ ");
+    Serial.println(sensor_address, HEX);
+    myCAM.sensor_addr_ = sensor_address;
   }
-  Serial.println("No i2C devices found");
-  return 0;
+  uint8_t vid, pid;
+  myCAM.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
+  myCAM.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
+  if ((vid != 0x56) || (pid != 0x42))
+    Serial.println("Can't find OV5640 module!");
+  else
+    Serial.println("OV5640 detected.");
+  /* Change to JPEG capture mode 
+   * initialize the OV5642 module */
+  myCAM.set_format(JPEG);
+  myCAM.InitCAM();  // SCCB
+  myCAM.OV5642_set_JPEG_size(OV5642_320x240);  // SCCB
+
+  pinMode(SPI_CS, OUTPUT);
+  SPI.begin();
+  //Check if the ArduCAM SPI bus is OK
+  myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
+  uint8_t temp = myCAM.read_reg(ARDUCHIP_TEST1);
+  if (temp != 0x55) {
+    Serial.println("SPI interface Error!");
+  }
+  myCAM.clear_fifo_flag();
+  myCAM.write_reg(ARDUCHIP_FRAMES, 0x00);
+  // Bit[2:0]Number of frames to be captured
+
+  temp = myCAM.read_reg(ARDUCHIP_MODE);
+  Serial.print("temp ");
+  Serial.println(temp, HEX);
 }
  
 void loop()
@@ -66,59 +73,49 @@ void loop()
     long int x;
     char* pEnd;
     x = strtol(rest.c_str(),&pEnd,16);
-
-    uint8_t vid;
-    myCAM.rdSensorReg8_8((uint8_t)x, &vid);
-    Serial.println(vid);
-  }
-  else if (readString[0] == 's') {
-    uint8_t vid;
-    for (int i = 0; i < 256; i++) {
-      myCAM.rdSensorReg8_8((uint8_t)i, &vid);
-      if (vid > 0) {
-        Serial.print(i, HEX);
-        Serial.print(" ");
-        Serial.println(vid, HEX);
-      }
-    }
-  }
-  else if (readString[0] == 'x') {
-    int found_address = scanForDevices();
-    Serial.println(found_address);
+    byte temp;
+    myCAM.rdSensorReg16_8(x, &temp);
+    Serial.print("got ");
+    Serial.println(temp, HEX);
   }
   else if (readString[0] == 'w') {
-    if (readString.length() == 10) {
-      String sub_address = readString.substring(1, 5);
+    if (readString.length() == 12) {
+      String sub_address = readString.substring(1, 7); // 1, 5 for 1 byte
       long int sub_address_int;
       char* sub_address_c;
       sub_address_int = strtol(sub_address.c_str(),&sub_address_c,16);
 
-      String data = readString.substring(6, 10);
+      String data = readString.substring(8, 12); // 7, 10 for 1 byte
       long int data_int;
       char* data_c;
       data_int = strtol(data.c_str(),&data_c,16);
 
       Serial.print("sub_address_int ");
       Serial.println(sub_address_int);
-
       Serial.print("data_intr ");
       Serial.println(data_int);
 
-      myCAM.wrSensorReg8_8(sub_address_int, data_int);
-
-      uint8_t vid;
-      myCAM.rdSensorReg8_8((uint8_t)sub_address_int, &vid);
-      Serial.println(vid);
+      myCAM.wrSensorReg16_8(sub_address_int, data_int);
     }
   }
-  else if (readString[0] == 'y') {
-      myCAM.wrSensorReg8_8(0xFF, 1);
+  else if (readString[0] == 'c') {
+    Serial.println("single shoot");
+    uint8_t temp;
+    myCAM.flush_fifo();
+    myCAM.clear_fifo_flag();
+    myCAM.start_capture();
+    start_capture = 1;
   }
-  readString = "";
 
-  myCAM.wrSensorReg8_8(0xFF, 1);
-  
-//  myCAM.wrSensorReg8_8(0xFF, 0x7F);
-//  uint8_t vid;
-//  myCAM.rdSensorReg8_8(0xFF, &vid);
+  if (start_capture) {
+    myCAM.clear_fifo_flag();
+    myCAM.start_capture();
+    start_capture = 0;
+  }
+
+  if(myCAM.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK)) {
+    Serial.println("Capture Done!");
+  }
+
+  readString = "";
 }
