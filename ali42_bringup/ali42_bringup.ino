@@ -72,12 +72,44 @@ Got 78
 // so now, we need to hoook up the PINX and PORTD/C/B macros for the teensy, and hook them up to ali42 correctly
 // we can test around with LEDs and the #define macros used in the other code
 // seems like both desaster and the ARduinoCamera code uses this
+// apparently, there is a mapping from PORTs (multi bits) to PINS (one bit each)
+// and the teensy is different than AVR in the firmware on this too
+
+/*
+PIXEL HOOKUPS
+PORTD0 is pin 2, is D0, yellow wire
+PORTD1 is pin 14, is D1, orange wire
+PORTD2 is pin 7, is D2, red wire
+PORTD3 is pin 8, is D3, brown wire
+PORTD4 is pin 6, is D4, white wire
+PORTD5 is pin 20, is D5, yellow wire
+PORTD6 is pin 21, is D6, green wire
+PORTD7 is pin 5, is D7, white wire
+*/
 
 #define sensor_addr 33 // 0x21 in HEX, recheck with 't'
 #define SIO_C 23
 #define SIO_D 22
 
 #define SIO_CLKDELAY 100
+
+// supporting pins
+#define VSYNC 14
+#define WEN 19
+#define OE 16
+#define RRST 17
+#define WRST 18
+#define RCLK 9 // CONFIRMED WITH SCHEMATIC FROM ROBODYN
+
+// pixel data pins
+#define PIXEL0 2
+#define PIXEL1 14
+#define PIXEL2 7
+#define PIXEL3 8
+#define PIXEL4 6
+#define PIXEL5 20
+#define PIXEL6 21
+#define PIXEL7 5
 
 void InitSCCB(void) {
   pinMode(SIO_C, OUTPUT);
@@ -86,6 +118,12 @@ void InitSCCB(void) {
   digitalWrite(SIO_C, HIGH);
   digitalWrite(SIO_D, HIGH);
   Serial.println("InitSCCB - Port Direction and set high.");
+
+  // set up supporting pins directions here
+  pinMode(VSYNC, INPUT);
+  pinMode(WEN, OUTPUT);
+  pinMode(RCLK, OUTPUT);
+  pinMode(RRST, OUTPUT);
 }
 
 void StartSCCB(void) {
@@ -374,6 +412,15 @@ void loop() {
       }
       delay(50);
     }
+  }
+  else if (readString[0] == 'b') {
+    Serial.println("beginning camera");
+  }
+  else if (readString[0] == 'c') {
+    Serial.println("capturing?");
+  }
+  else if (readString[0] == 'y') {
+    Serial.println("reading pixels?");
   }
 
   readString = "";
