@@ -113,6 +113,10 @@ PIND value0
 */
 
 // so then check 0x12 and it is 00 as default, so that means output format is YUV
+// put hand over the camera, and the values seemed to change
+
+// next up: writing to a txt file the YUV / RGB values or whatever file on microSD
+// analyzing that data in post
 
 #define sensor_addr 33 // 0x21 in HEX, recheck with 't'
 #define SIO_C 23
@@ -138,6 +142,11 @@ PIND value0
 #define PIXEL5 20
 #define PIXEL6 21
 #define PIXEL7 5
+
+#include <SPI.h>
+#include <SD.h>
+
+File read_frame_file;
 
 void InitSCCB(void) {
   pinMode(SIO_C, OUTPUT);
