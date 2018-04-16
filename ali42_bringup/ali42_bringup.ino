@@ -87,6 +87,33 @@ PORTD6 is pin 21, is D6, green wire
 PORTD7 is pin 5, is D7, white wire
 */
 
+// VSYNC line never ticks up, stays at negative
+// suspect that is because COM10,
+// register 0x15 on Ov7670 is set such
+// check over SCCB the register value
+// so the value of 0x15 is default of 00
+// so that means VSYNC does change on falling edge of PCLK, means it is fw right
+// turns out wrong pinning, VSYNC was 14 but should be 19, WEN is 15 instead of 19
+
+// WEN is currently 1 when testing it, does that mean it is ACTIVE LOW? Y datasheet confirms
+
+// after some testing, got PIND some YUV or whatever
+// nonzero values after setting all those pins to pinMode INPUT
+/*
+PIND value68
+PIND value160
+PIND value160
+PIND value160
+PIND value160
+PIND value68
+PIND value68
+PIND value68
+PIND value4
+PIND value0
+*/
+
+// so then check 0x12 and it is 00 as default, so that means output format is YUV
+
 #define sensor_addr 33 // 0x21 in HEX, recheck with 't'
 #define SIO_C 23
 #define SIO_D 22
@@ -94,8 +121,9 @@ PORTD7 is pin 5, is D7, white wire
 #define SIO_CLKDELAY 100
 
 // supporting pins
-#define VSYNC 14
-#define WEN 19
+//#define VSYNC 14
+#define VSYNC 19
+#define WEN 15
 #define OE 16
 #define RRST 17
 #define WRST 18
@@ -118,12 +146,6 @@ void InitSCCB(void) {
   digitalWrite(SIO_C, HIGH);
   digitalWrite(SIO_D, HIGH);
   Serial.println("InitSCCB - Port Direction and set high.");
-
-  // set up supporting pins directions here
-  pinMode(VSYNC, INPUT);
-  pinMode(WEN, OUTPUT);
-  pinMode(RCLK, OUTPUT);
-  pinMode(RRST, OUTPUT);
 }
 
 void StartSCCB(void) {
@@ -356,6 +378,37 @@ void setup() {
     Serial.println("Init : OK");
   else
     Serial.println("Init : NG....");
+
+  // set up supporting pins directions here
+  pinMode(VSYNC, INPUT);
+  pinMode(WEN, OUTPUT);
+  pinMode(RCLK, OUTPUT);
+  pinMode(RRST, OUTPUT);
+  digitalWriteFast(WEN, HIGH);  // active low, so disables fifo write
+  delayMicroseconds(100);
+
+  pinMode(PIXEL0, INPUT);
+  pinMode(PIXEL1, INPUT);
+  pinMode(PIXEL2, INPUT);
+  pinMode(PIXEL3, INPUT);
+  pinMode(PIXEL4, INPUT);
+  pinMode(PIXEL5, INPUT);
+  pinMode(PIXEL6, INPUT);
+  pinMode(PIXEL7, INPUT);
+}
+
+void enableWrite() {
+  digitalWriteFast(WEN, LOW);
+}
+
+void disableWrite() {
+  digitalWriteFast(WEN, HIGH);
+}
+
+void resetReadPointer() {
+  digitalWriteFast(RRST, LOW);
+  delayMicroseconds(100);
+  digitalWriteFast(RRST, HIGH);
 }
 
 void loop() {
@@ -418,9 +471,27 @@ void loop() {
   }
   else if (readString[0] == 'c') {
     Serial.println("capturing?");
+    while (digitalReadFast(VSYNC));
+    Serial.println("got a 0 VSYNC");
+    while (!digitalReadFast(VSYNC));
+    Serial.println("got a 1 VSYNC");
+    enableWrite();
+    while (digitalReadFast(VSYNC));
+    Serial.println("got all vsync reads");
+    disableWrite();
   }
   else if (readString[0] == 'y') {
     Serial.println("reading pixels?");
+    resetReadPointer();
+    Serial.println("done resetting read pointer");
+    for (int i = 0; i < 480; ++i) {
+      for (int j = 0; j < 640; ++j) {
+        digitalWriteFast(RCLK, HIGH);
+        Serial.print("PIND value");
+        Serial.println(PIND);
+        digitalWriteFast(RCLK, LOW);
+      }
+    }
   }
 
   readString = "";
