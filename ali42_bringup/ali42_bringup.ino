@@ -123,7 +123,7 @@ PIND value0
 // set COM15,0x40 default is 0xC0 = 1100,0000, which means 00 to FF, normal RGB output
 // to 00 00 00 00, which means 10 to F0 (8 bits), 4:2:2 format
 
-#ifndef __OV7670REG_H 
+#ifndef __OV7670REG_H
 #define __OV7670REG_H
 
 #define REG_GAIN        0x00    /* Gain lower 8 bits (rest in vref) */
@@ -295,7 +295,7 @@ void StartSCCB(void) {
   digitalWrite(SIO_D, LOW); // documentation: assert SIO_D low while SIO_C high
   delayMicroseconds(SIO_CLKDELAY);
   digitalWrite(SIO_C, LOW);
-//  Serial.println("Starting SCCB : done."); 
+//  Serial.println("Starting SCCB : done.");
 }
 
 void StopSCCB(void) {
@@ -306,7 +306,7 @@ void StopSCCB(void) {
   delayMicroseconds(SIO_CLKDELAY);
   digitalWrite(SIO_D,HIGH);
   delayMicroseconds(SIO_CLKDELAY);
-//  Serial.println("Stoping SCCB : done.");  
+//  Serial.println("Stoping SCCB : done.");
 }
 
 char WriteSCCB(byte m_data) {
@@ -335,7 +335,7 @@ char WriteSCCB(byte m_data) {
   delayMicroseconds(SIO_CLKDELAY);
   digitalWrite(SIO_C, HIGH);
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /*there is something to read to check the transmission :*/
   if(digitalRead(SIO_D) == HIGH)
   {
@@ -343,15 +343,15 @@ char WriteSCCB(byte m_data) {
     tem = 0;
   } else {
     tem = 1;
-//    Serial.println("SCCB Write : OK."); 
+//    Serial.println("SCCB Write : OK.");
   }
-  
+
   digitalWrite(SIO_C, LOW);
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /*let's clean that up :*/
   pinMode(SIO_D, OUTPUT);
-  
+
   return tem;
 }
 
@@ -363,7 +363,7 @@ char ReadSCCB(byte* m_data) {
   for (unsigned int j = 0; j < 8; j++) {
     delayMicroseconds(SIO_CLKDELAY);
     digitalWrite(SIO_C, HIGH);
-    
+
     /*let's read in the middle of the SIO_C cycle :*/
     /*read the MSB not read yet :*/
     if(digitalRead(SIO_D) != LOW) {
@@ -371,29 +371,29 @@ char ReadSCCB(byte* m_data) {
     } else {
       *m_data = 0xFE & (*m_data << 1) ;
     }
-    
+
     delayMicroseconds(SIO_CLKDELAY);
     digitalWrite(SIO_C, LOW);
     delayMicroseconds(SIO_CLKDELAY);
   }
-  
+
   /*eight bits have been read, let's deal with the ninth Don't-care one*/
   /*the master is responsible for driver SIO_D at logical 1 during the NA bit.*/
   pinMode(SIO_D, OUTPUT);
   digitalWrite(SIO_D, HIGH);
-  
+
   delayMicroseconds(SIO_CLKDELAY);
   digitalWrite(SIO_C, HIGH);
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /*there is something/nothing to read to check the transmission ???*/
   digitalWrite(SIO_C, LOW);
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /*let's clean that up : reset as usual as if we had written...*/
   pinMode(SIO_D, OUTPUT);
   digitalWrite(SIO_D, LOW);
-  
+
   return 1;
 }
 
@@ -401,7 +401,7 @@ int ReadSensor(byte regID, byte* regData) {
   StartSCCB();
   /* 2-phase write transmission cycle */
   /*---------------------------------*/
-  
+
   /* phase 1: slave_id is 7 bits + 1 bit 0 = w, 1 = r, + dont care */
   byte write_sensor_addr = sensor_addr << 1;
   byte read_sensor_addr = write_sensor_addr | 0x01;
@@ -411,7 +411,7 @@ int ReadSensor(byte regID, byte* regData) {
   Serial.println(write_sensor_addr, HEX);
   Serial.print("read_sensor_addr: ");
   Serial.println(read_sensor_addr, HEX);
-  
+
   if (WriteSCCB(write_sensor_addr) == 0) {
     Serial.println("ReadSensor failed phase 1-1");
     StopSCCB();
@@ -427,7 +427,7 @@ int ReadSensor(byte regID, byte* regData) {
   /* need to stop and restart between write and read parts */
   StopSCCB();
   StartSCCB();
-  
+
   /*---------------------------------*/
   /* 2-phase read transmission cycle */
   /* phase 1 : ID address */
@@ -437,7 +437,7 @@ int ReadSensor(byte regID, byte* regData) {
     StopSCCB();
     return(0);
   }
-  
+
   /*phase 2 : data reading*/
   if (ReadSCCB(regData) == 0) {
     Serial.println("ReadSensor failed phase 2-2");
@@ -455,21 +455,21 @@ int ReadSensor(byte regID, byte* regData) {
 
 int WriteSensor(byte regID, byte regData) {
   StartSCCB();
-  
+
   /* phase 1: slave_id is 7 bits + 1 bit 0 = w, 1 = r, + dont care */
   byte write_sensor_addr = sensor_addr << 1;
 
   // LSB is left 0 for write
   Serial.print("write_sensor_addr: ");
   Serial.println(write_sensor_addr, HEX);
-  
+
   if (WriteSCCB(write_sensor_addr) == 0) {
     Serial.println("Problem : 3 phase Write Error phase 1.");
     StopSCCB();
     return(0);
   }
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /* phase 2 : sub address is just 8 bits, + don't care */
   if (WriteSCCB(regID) == 0) {
     Serial.println("Problem : 3 phase Write Error phase 2.");
@@ -477,14 +477,14 @@ int WriteSensor(byte regID, byte regData) {
     return(0);
   }
   delayMicroseconds(SIO_CLKDELAY);
-  
+
   /* phase 3 : data writing */
   if (WriteSCCB(regData) == 0) {
     Serial.println("Problem : 3 phase Write Error phase 3.");
     StopSCCB();
     return(0);
   }
-  
+
   /*exiting*/
   StopSCCB();
   return(1);
@@ -508,7 +508,7 @@ int InitSensor(void) {
 
 void setup() {
   Serial.begin(115200);
-  
+
   if(InitSensor())
     Serial.println("Init : OK");
   else
@@ -519,6 +519,7 @@ void setup() {
   pinMode(WEN, OUTPUT);
   pinMode(RCLK, OUTPUT);
   pinMode(RRST, OUTPUT);
+
   digitalWriteFast(WEN, HIGH);  // active low, so disables fifo write
   delayMicroseconds(100);
 
@@ -563,10 +564,10 @@ void resetReadPointer() {
 void set_reg(String sub_address, String data) {
   char* sub_address_c;
   long int sub_address_int = strtol(sub_address.c_str(),&sub_address_c,16);
-  
+
   char* data_c;
   long int data_int = strtol(data.c_str(),&data_c,16);
-  
+
   byte temp = WriteSensor(sub_address_int, data_int);
   if (temp > 0) {
     Serial.println("write success!");
